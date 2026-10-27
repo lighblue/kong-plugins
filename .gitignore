@@ -27,7 +27,15 @@ go.work.sum
 
 # env file
 .env
+.env.*
+!.env.example
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
+.DS_Store
+
+# Local build outputs
+/build/
+/kong-auth
+/dist/

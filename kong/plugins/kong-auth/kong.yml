@@ -1,0 +1,26 @@
+_format_version: "3.0"
+
+custom_plugins:
+  - name: kong-auth
+    schema: |
+      return {
+        name = "kong-auth",
+        fields = {
+          {
+            config = {
+              type = "record",
+              fields = {
+                { auth_server_url = { type = "string", required = true } },
+                { request_header_name = { type = "string", required = true } },
+              },
+            },
+          },
+        },
+      }
+    handler: |
+      local MyPluginHandler = {
+        PRIORITY = 1000,
+        VERSION = "0.0.1",
+      }
+
+      return MyPluginHandler
