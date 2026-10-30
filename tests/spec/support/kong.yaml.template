@@ -1,0 +1,36 @@
+_format_version: "3.0"
+services:
+  - name: auth-upstream
+    url: http://127.0.0.1:%s
+routes:
+  - name: auth-test
+    service: auth-upstream
+    paths:
+      - /auth-test
+    protocols:
+      - http
+  - name: auth-alternate
+    service: auth-upstream
+    paths:
+      - /auth-alternate
+    protocols:
+      - http
+plugins:
+  - name: kong-auth
+    route: auth-test
+    config:
+      auth_server_url: http://127.0.0.1:%s/
+      request_header_name: Authorization
+      extra_header_mappings:
+        - source_field: jwt
+          name: X-Auth-Token
+        - source_field: role
+          name: X-Auth-Role
+  - name: kong-auth
+    route: auth-alternate
+    config:
+      auth_server_url: http://127.0.0.1:%s/
+      request_header_name: Authorization
+      extra_header_mappings:
+        - source_field: jwt
+          name: X-Session-JWT

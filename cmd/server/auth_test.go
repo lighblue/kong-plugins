@@ -9,6 +9,7 @@ import (
 	"github.com/Kong/go-pdk/test"
 )
 
+// Scenario: run the plugin with missing, valid, and denied credentials; expect the matching response status and error code.
 func TestAuthHeader(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -17,26 +18,31 @@ func TestAuthHeader(t *testing.T) {
 		authStatus int
 		wantStatus int
 	}{
+		// Scenario: omit Authorization; expect 400 and ERR0002.
 		{
 			name:       "missing header",
 			headerName: "Authorization",
 			wantStatus: http.StatusBadRequest,
 		},
+		// Scenario: send an empty Authorization value; expect 400 and ERR0002.
 		{
 			name:       "empty header",
 			headerName: "Authorization",
 			headers:    http.Header{"Authorization": {""}},
 			wantStatus: http.StatusBadRequest,
 		},
+		// Scenario: leave the configured credential header name unset; expect 400 and ERR0002.
 		{
 			name:       "unconfigured header name",
 			wantStatus: http.StatusBadRequest,
 		},
+		// Scenario: send a credential accepted by the auth server; expect the request to continue.
 		{
 			name:       "present header",
 			headerName: "Authorization",
 			headers:    http.Header{"Authorization": {"Bearer token"}},
 		},
+		// Scenario: send a credential rejected with 403; expect 401 and ERR0004.
 		{
 			name:       "auth server rejects",
 			headerName: "Authorization",
@@ -95,6 +101,7 @@ func TestAuthHeader(t *testing.T) {
 	}
 }
 
+// Scenario: decode Kong plugin JSON containing a response-field mapping; expect the source field and header name to be retained.
 func TestConfigAcceptsKongExtraHeaderMappings(t *testing.T) {
 	config := NewAuthConfig().(*Config)
 	if err := json.Unmarshal([]byte(`{

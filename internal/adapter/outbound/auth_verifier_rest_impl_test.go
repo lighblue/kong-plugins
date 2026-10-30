@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// Scenario: POST to a successful auth server; expect forwarded headers and a decoded JSON response.
 func TestVerifySendsHeadersAndDecodesResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -37,14 +38,19 @@ func TestVerifySendsHeadersAndDecodesResponse(t *testing.T) {
 	}
 }
 
+// Scenario: receive a 2xx auth response, including an empty 204; expect success and the appropriate payload.
 func TestVerifyAllows2xxWithValidOrEmptyResponse(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		status int
 	}{
+		// Scenario: receive 200 with JSON; expect decoded auth fields.
 		{name: "200", status: http.StatusOK},
+		// Scenario: receive 201 with JSON; expect decoded auth fields.
 		{name: "201", status: http.StatusCreated},
+		// Scenario: receive 204 without a body; expect success with nil fields.
 		{name: "204", status: http.StatusNoContent},
+		// Scenario: receive 299 with JSON; expect decoded auth fields.
 		{name: "299", status: 299},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -71,6 +77,7 @@ func TestVerifyAllows2xxWithValidOrEmptyResponse(t *testing.T) {
 	}
 }
 
+// Scenario: receive an error status or malformed JSON; expect an error and no auth fields.
 func TestVerifyRejectsUnsuccessfulOrInvalidResponses(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -78,8 +85,11 @@ func TestVerifyRejectsUnsuccessfulOrInvalidResponses(t *testing.T) {
 		body    string
 		wantErr string
 	}{
+		// Scenario: receive 401; expect an HTTP 401 error and no fields.
 		{name: "unauthorized", status: http.StatusUnauthorized, wantErr: "HTTP 401"},
+		// Scenario: receive 503; expect an HTTP 503 error and no fields.
 		{name: "server error", status: http.StatusServiceUnavailable, wantErr: "HTTP 503"},
+		// Scenario: receive malformed JSON with 200; expect a decode error and no fields.
 		{name: "invalid JSON", status: http.StatusOK, body: "invalid", wantErr: "decode auth response"},
 	}
 
@@ -102,6 +112,7 @@ func TestVerifyRejectsUnsuccessfulOrInvalidResponses(t *testing.T) {
 	}
 }
 
+// Scenario: the auth server redirects to another endpoint; expect the redirect to be rejected without contacting the target.
 func TestVerifyDoesNotFollowRedirect(t *testing.T) {
 	redirected := false
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -123,6 +134,7 @@ func TestVerifyDoesNotFollowRedirect(t *testing.T) {
 	}
 }
 
+// Scenario: pass an invalid URL or canceled context; expect request construction or cancellation errors.
 func TestVerifyHonorsContextAndRejectsInvalidURL(t *testing.T) {
 	verifier := NewAuthVerifierRestImpl()
 	if _, err := verifier.Verify(context.Background(), "://invalid", nil); err == nil {
@@ -137,6 +149,7 @@ func TestVerifyHonorsContextAndRejectsInvalidURL(t *testing.T) {
 	}
 }
 
+// Scenario: the auth server waits beyond the context deadline; expect the in-flight request to stop.
 func TestVerifyStopsInFlightRequestAtContextDeadline(t *testing.T) {
 	started := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
@@ -168,6 +181,7 @@ func TestVerifyStopsInFlightRequestAtContextDeadline(t *testing.T) {
 	}
 }
 
+// Scenario: the auth server is unreachable; expect a connection error and no decoded fields.
 func TestVerifyReturnsConnectionError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	url := server.URL

@@ -28,13 +28,16 @@ func newGatewayTestEnv(t *testing.T, headers http.Header) *pdktest.TestEnv {
 	return env
 }
 
+// Scenario: read a present or missing request header through the Kong adapter; expect its value or an empty string.
 func TestKongGatewayGetRequestHeader(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		headers http.Header
 		want    string
 	}{
+		// Scenario: read a present Authorization header; expect its credential value.
 		{name: "present", headers: http.Header{"Authorization": {"Bearer token"}}, want: "Bearer token"},
+		// Scenario: read an absent Authorization header; expect an empty string.
 		{name: "missing"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -51,6 +54,7 @@ func TestKongGatewayGetRequestHeader(t *testing.T) {
 	}
 }
 
+// Scenario: set upstream headers through the Kong adapter; expect replacements, added values, and unrelated headers to remain correct.
 func TestKongGatewayAppendRequestHeaders(t *testing.T) {
 	env := newGatewayTestEnv(t, http.Header{
 		"Authorization": {"old-token"},
@@ -84,6 +88,7 @@ func TestKongGatewayAppendRequestHeaders(t *testing.T) {
 	}
 }
 
+// Scenario: reject a request through the Kong adapter; expect a stopped request and JSON error response.
 func TestKongGatewayRejectRequest(t *testing.T) {
 	env := newGatewayTestEnv(t, nil)
 	want := entity.ErrorResponse{Message: "authentication failed", Code: "ERR_AUTH"}

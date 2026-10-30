@@ -110,6 +110,7 @@ func testAuthConfig() *entity.AuthConfig {
 	}
 }
 
+// Scenario: authenticate a request with mapped response fields; expect a remote check, cache write, and selected upstream headers.
 func TestExecuteVerifiesAndAppendsMappedResponseFields(t *testing.T) {
 	config := testAuthConfig()
 	config.ExtraHeaderMappings = []entity.ExtraHeaderMapping{
@@ -144,6 +145,7 @@ func TestExecuteVerifiesAndAppendsMappedResponseFields(t *testing.T) {
 	}
 }
 
+// Scenario: authenticate with a cached response; expect no remote call and the cached field in upstream headers.
 func TestExecuteUsesCachedResponse(t *testing.T) {
 	config := testAuthConfig()
 	config.ExtraHeaderMappings = []entity.ExtraHeaderMapping{{SourceField: "jwt", Name: "X-Auth-Token"}}
@@ -163,12 +165,15 @@ func TestExecuteUsesCachedResponse(t *testing.T) {
 	}
 }
 
+// Scenario: the configured credential header is missing or empty; expect a 400 rejection before verification.
 func TestExecuteRejectsMissingOrEmptyHeader(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		headers http.Header
 	}{
+		// Scenario: omit Authorization; expect 400 without cache or verifier calls.
 		{name: "missing"},
+		// Scenario: send empty Authorization; expect 400 without cache or verifier calls.
 		{name: "empty", headers: http.Header{"Authorization": {""}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -190,6 +195,7 @@ func TestExecuteRejectsMissingOrEmptyHeader(t *testing.T) {
 	}
 }
 
+// Scenario: Kong fails to read the credential header; expect a 400 rejection without remote verification.
 func TestExecuteRejectsRequestHeaderReadError(t *testing.T) {
 	conn, peer := net.Pipe()
 	_ = conn.Close()
@@ -214,14 +220,18 @@ func TestExecuteRejectsRequestHeaderReadError(t *testing.T) {
 	}
 }
 
+// Scenario: the cache cannot provide a usable auth response; expect remote verification and a cache write.
 func TestVerifyFallsBackToRemote(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		cached   interface{}
 		cacheErr error
 	}{
+		// Scenario: find no cached response; expect remote verification and cache write.
 		{name: "cache miss"},
+		// Scenario: fail to read the cache; expect remote verification and cache write.
 		{name: "cache read error", cacheErr: errors.New("cache unavailable")},
+		// Scenario: find an unexpected cached value type; expect remote verification and cache write.
 		{name: "wrong cached type", cached: "not a response map"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -241,6 +251,7 @@ func TestVerifyFallsBackToRemote(t *testing.T) {
 	}
 }
 
+// Scenario: verify the same credential twice; expect one remote call followed by a cache hit.
 func TestVerifyReusesResponseAfterCacheWrite(t *testing.T) {
 	response := map[string]interface{}{"jwt": "remote-token"}
 	verifier := &stubAuthVerifier{response: response}
@@ -257,6 +268,7 @@ func TestVerifyReusesResponseAfterCacheWrite(t *testing.T) {
 	}
 }
 
+// Scenario: remote verification fails; expect its error and no cache write.
 func TestVerifyDoesNotCacheRemoteFailure(t *testing.T) {
 	wantErr := errors.New("auth server rejected request")
 	verifier := &stubAuthVerifier{err: wantErr}
@@ -269,6 +281,7 @@ func TestVerifyDoesNotCacheRemoteFailure(t *testing.T) {
 	}
 }
 
+// Scenario: caching a successful remote response fails; expect authentication to remain successful.
 func TestVerifyCacheWriteErrorDoesNotDiscardRemoteSuccess(t *testing.T) {
 	response := map[string]interface{}{"jwt": "remote-token"}
 	cache := &stubCache{setErr: errors.New("cache unavailable")}
@@ -280,6 +293,7 @@ func TestVerifyCacheWriteErrorDoesNotDiscardRemoteSuccess(t *testing.T) {
 	}
 }
 
+// Scenario: Kong fails to set upstream headers; expect a 500 rejection with the gateway error.
 func TestExecuteRejectsUpstreamHeaderWriteError(t *testing.T) {
 	wantErr := errors.New("cannot set upstream headers")
 	gw := &stubKongGateway{appendErr: wantErr}
@@ -293,6 +307,7 @@ func TestExecuteRejectsUpstreamHeaderWriteError(t *testing.T) {
 	}
 }
 
+// Scenario: the auth server rejects a credential; expect a client-error rejection without caching.
 func TestExecuteRejectsRemoteAuthFailure(t *testing.T) {
 	wantErr := errors.New("auth server returned HTTP 403")
 	verifier := &stubAuthVerifier{err: wantErr}

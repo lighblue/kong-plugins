@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// Scenario: read a missing key, then insert and overwrite it; expect the latest cached value.
 func TestMemoryCacheGetSet(t *testing.T) {
 	cache := NewMemoryCache(time.Minute, time.Hour)
 	t.Cleanup(cache.Close)
@@ -27,6 +28,7 @@ func TestMemoryCacheGetSet(t *testing.T) {
 	}
 }
 
+// Scenario: let a cached value pass its TTL; expect reads to miss before periodic cleanup removes the entry.
 func TestMemoryCacheExpires(t *testing.T) {
 	cache := NewMemoryCache(20*time.Millisecond, time.Hour)
 	t.Cleanup(cache.Close)
@@ -45,6 +47,7 @@ func TestMemoryCacheExpires(t *testing.T) {
 	}
 }
 
+// Scenario: disable cleanup and let a value expire; expect reads to miss while the entry remains stored.
 func TestMemoryCacheExpiresWithoutPeriodicCleanup(t *testing.T) {
 	cache := NewMemoryCache(20*time.Millisecond, 0)
 	t.Cleanup(cache.Close)
@@ -66,6 +69,7 @@ func TestMemoryCacheExpiresWithoutPeriodicCleanup(t *testing.T) {
 	}
 }
 
+// Scenario: let the cleanup ticker run after expiry; expect the expired entry to be removed.
 func TestMemoryCachePeriodicCleanup(t *testing.T) {
 	cache := NewMemoryCache(20*time.Millisecond, 10*time.Millisecond)
 	t.Cleanup(cache.Close)
@@ -86,6 +90,7 @@ func TestMemoryCachePeriodicCleanup(t *testing.T) {
 	t.Fatal("periodic cleanup did not remove the expired entry")
 }
 
+// Scenario: close the cache twice and then add an entry; expect cleanup to remain stopped.
 func TestMemoryCacheCloseStopsCleanup(t *testing.T) {
 	cache := NewMemoryCache(20*time.Millisecond, 10*time.Millisecond)
 	cache.Close()
@@ -102,8 +107,14 @@ func TestMemoryCacheCloseStopsCleanup(t *testing.T) {
 	}
 }
 
+// Scenario: use zero or negative TTL; expect writes to be ignored and reads to miss.
 func TestMemoryCacheNonPositiveTTL(t *testing.T) {
-	for _, ttl := range []time.Duration{0, -time.Second} {
+	for _, ttl := range []time.Duration{
+		// Scenario: use zero TTL; expect writes to be ignored.
+		0,
+		// Scenario: use negative TTL; expect writes to be ignored.
+		-time.Second,
+	} {
 		cache := NewMemoryCache(ttl, time.Hour)
 		t.Cleanup(cache.Close)
 		if err := cache.Set("token", "value"); err != nil {
@@ -115,6 +126,7 @@ func TestMemoryCacheNonPositiveTTL(t *testing.T) {
 	}
 }
 
+// Scenario: concurrently write and read distinct keys; expect each goroutine to retrieve its own value.
 func TestMemoryCacheConcurrentAccess(t *testing.T) {
 	cache := NewMemoryCache(time.Minute, time.Hour)
 	t.Cleanup(cache.Close)
@@ -136,6 +148,7 @@ func TestMemoryCacheConcurrentAccess(t *testing.T) {
 	workers.Wait()
 }
 
+// Scenario: concurrently refresh and read an expiring key; expect safe access without errors.
 func TestMemoryCacheConcurrentExpiryAndRefresh(t *testing.T) {
 	cache := NewMemoryCache(time.Nanosecond, time.Millisecond)
 	t.Cleanup(cache.Close)
