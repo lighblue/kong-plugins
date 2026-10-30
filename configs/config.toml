@@ -1,0 +1,9 @@
+[auth_check]
+# Maximum seconds allowed for one authentication check.
+timeout = 10
+
+[auth_cache]
+# Interval(seconds) between scans that remove expired in-memory auth cache entries.
+cleanup_interval = 300
+# TTL seconds
+ttl = 60

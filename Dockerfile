@@ -5,6 +5,7 @@ USER root
 
 # Add custom plugin to the image
 COPY ./build/linux-arm64/kong-auth /usr/local/bin/kong-auth
+COPY ./configs/ /configs/
 #COPY ./kong/plugins/kong-auth/schema.lua /usr/local/share/lua/5.1/kong/plugins/kong-auth/schema.lua
 ENV KONG_PLUGINS=bundled,kong-auth
 ENV KONG_PLUGINSERVER_NAMES=kong-auth

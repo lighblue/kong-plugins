@@ -2,10 +2,12 @@ package inbound
 
 import (
 	"context"
-	"kong-plugins/internal/domain/entity"
+	"fmt"
 	"kong-plugins/internal/usecase"
+	"time"
 
 	"github.com/Kong/go-pdk"
+	"github.com/spf13/viper"
 )
 
 type AuthChecker struct {
@@ -18,6 +20,23 @@ func NewAuthChecker(checkAuthUseCase *usecase.CheckAuth) *AuthChecker {
 	}
 }
 
-func (conf AuthChecker) Check(config entity.AuthConfig, kong *pdk.PDK) {
-	conf.checkAuthUseCase.Execute(context.TODO(), config, kong)
+func (conf *AuthChecker) Check(kong *pdk.PDK) {
+	kong.Log.Info("checking auth")
+
+	cxt, cancel := context.WithTimeout(context.Background(), getTimeout())
+	defer cancel()
+
+	err := conf.checkAuthUseCase.Execute(cxt, kong)
+	if err != nil {
+		_ = kong.Log.Err(fmt.Sprintf("auth check failed: %v", err))
+		return
+	}
+}
+
+func getTimeout() time.Duration {
+	timeout := viper.GetInt("auth_check.timeout")
+	if timeout == 0 {
+		timeout = 10
+	}
+	return time.Duration(timeout) * time.Second
 }

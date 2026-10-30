@@ -37,6 +37,9 @@ _format_version: "3.0"
 plugins:
   - name: kong-auth
     config:
-      auth_server_url: "serverx"
+      auth_server_url: "http://httpbin.org/anything"
       request_header_name: "headerx"
+      extra_header_mappings:
+        - source_field: origin
+          name: X-Auth-Token
 ' | deck gateway apply -
