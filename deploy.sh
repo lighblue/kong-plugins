@@ -38,8 +38,8 @@ plugins:
   - name: kong-auth
     config:
       auth_server_url: "http://httpbin.org/anything"
-      request_header_name: "headerx"
+      request_header_name: "Authorization"
       extra_header_mappings:
         - source_field: origin
-          name: X-Auth-Token
+          name: Origin-IP
 ' | deck gateway apply -
