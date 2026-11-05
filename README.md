@@ -9,6 +9,28 @@
 3. Map selected top-level fields from the authentication JSON response to upstream request headers through `extra_header_mappings`.
 4. Cache successful authentication responses by credential value in the plugin process. A cache hit avoids another call to the authentication service.
 
+## Architecture
+
+The project is designed toward Clean Architecture, using ports and adapters to separate application logic from concrete infrastructure. This is still a work in progress: `internal/usecase` imports the Kong PDK, and some port signatures expose PDK types. A future improvement is to use framework-neutral data in the use case and its ports, leaving Kong-specific operations in the adapters.
+
+This repository currently contains one plugin, `kong-auth`. `cmd/server` is its Kong Go pluginserver entry point, not a standalone HTTP authentication server. The external authentication service is called by the plugin.
+
+| Location | Responsibility |
+| --- | --- |
+| `cmd/server` | Framework entry point: connects Kong's plugin lifecycle and configuration to the inbound adapter. |
+| `internal/adapter/inbound` | Driving adapter and composition root: invokes the use case and assembles its dependencies. |
+| `internal/usecase` | Application layer: coordinates the authentication workflow and uses ports for external capabilities. |
+| `internal/interfaces` | Ports: define the capabilities the application requires from outside the use case. |
+| `internal/adapter/outbound` | Driven adapters: implement ports using external systems or process-local infrastructure. |
+| `internal/domain/entity` | Domain-facing data types: represent application concepts without infrastructure dependencies. |
+| `kong/plugins/kong-auth` | Deployment boundary: declares the plugin contract to Kong outside the application core. |
+
+For each request, Kong calls `Config.Access`, which delegates to `inbound.AuthChecker` and then `usecase.CheckAuth`. The use case reads the configured request header, checks the cache, calls the external auth service on a miss, and either rejects the request or adds mapped fields to the request sent upstream. `cmd/common` loads the separate runtime settings from `configs/config.toml`.
+
+`NewAuthConfig` creates one `Config` for each Kong plugin configuration instance. Its checker is assembled on the first `Access` call and reused for later requests to that instance. The memory cache belongs to that checker: it is not shared across plugin instances or Go pluginserver processes, and it is not a distributed cache.
+
+Caching is defined by the [`Cache` interface](internal/interfaces/cache.go), so the use case does not depend on a particular storage implementation. The current outbound adapter is a simple TTL-based [`MemoryCache`](internal/adapter/outbound/memory_cache.go). To use another backend, such as Redis or a file-backed cache, implement the same interface and replace the construction in [`internal/adapter/inbound/provider.go`](internal/adapter/inbound/provider.go); the use case does not need to change.
+
 ### Plugin schema
 
 The schema is defined in [`kong/plugins/kong-auth/schema.lua`](kong/plugins/kong-auth/schema.lua). The plugin definition used by Konnect and decK is in [`kong/plugins/kong-auth/kong.yml`](kong/plugins/kong-auth/kong.yml).
